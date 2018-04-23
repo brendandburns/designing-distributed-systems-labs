@@ -1,0 +1,15 @@
+{
+    "mailConfig": {
+        "host": "smtp.office365.com",
+        "port": "587",
+        "secure": false,
+        "requireTLS": true,
+        "auth": {
+            "user": "manfredw@canviz.com",
+            "pass": "SOMEPASSWORD"
+        },
+        "tls": {
+            "rejectUnauthorized": false
+        }
+    }
+}

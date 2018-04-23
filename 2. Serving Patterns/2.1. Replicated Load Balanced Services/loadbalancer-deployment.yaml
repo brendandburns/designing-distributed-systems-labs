@@ -1,0 +1,22 @@
+apiVersion: apps/v1beta1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: loadbalancer-deployment
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: loadbalancer-deployment
+    spec:
+      containers:
+      - name: server
+        image: brendanburns/dictionary-server
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5

@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: experiment-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: experiment-deployment
+    spec:
+      containers:
+      - name: experiment-depoyment
+        image: microsoft/aci-helloworld
+        ports:
+        - containerPort: 80

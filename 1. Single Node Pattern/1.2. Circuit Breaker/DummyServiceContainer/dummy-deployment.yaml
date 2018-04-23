@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: dummy-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dummy-deployment
+    spec:
+      containers:
+      - name: dummy-depoyment
+        image: circuitbreakerregistry.azurecr.io/dummyservice
+        ports:
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /alive
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      imagePullSecrets:
+      - name: circuitbreakerregistry.azurecr.io
+      # In production scenarios restartPolicy should be set to "Always", but for now, since we want to demonstrate the behaviour of the Circuit Breaker pattern we   
+      # want to avoid Kubernetes killing and automatically restarting our container.
+      # This seems unsupported, although this could be an actual use case. Try it with a long termination grace period
+      # restartPolicy: "Never"
+      # Make it go slow on recreation of the container, so that we can properly test the Circuit Breaker
+      # terminationGracePeriodSeconds: 1200
