@@ -1,0 +1,45 @@
+apiVersion: apps/v1beta1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: circuitbreaker
+spec:
+  selector:
+    matchLabels:
+      app: circuitbreaker
+  replicas: 1 # The number of replicas to fire up. For now, we'll fire up 1, for simplicity.
+  template: 
+    metadata:
+      labels:
+        app: circuitbreaker
+    spec:
+      containers:
+      # If you decided to build your own NGINX Docker image, update the following line to point to your Docker hub or ACR Registry (or where ever you deployed the NGINX Plus image)
+      - image: tylerlu/nginxplus
+        name: circuitbreaker
+        ports:
+        - containerPort: 80
+        # Add a special VolumeMount to the NGINX Plus image that will use the ConfigMap you created in another command (see nginx-configmap.yaml) to override the default NGINX configuration settings
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nginx/conf.d
+      volumes:
+      - name: config-volume
+        configMap:
+          name: nginx-configuration
+
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: circuitbreaker
+  labels:
+    app: circuitbreaker
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: circuitbreaker

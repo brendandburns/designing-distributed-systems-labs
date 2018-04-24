@@ -17,95 +17,65 @@ const app = express();
 // We will be using this boolean to mimick an issue with this service
 var fakeAnError = false;
 
+// We will not mess with the /alive endpoint, because that triggers the killing and recreation of the container by Kubernetes
 app.get('/alive', (req, res) => {
 
-    // In order for Kubernetes not to kill and restart our container in this test scenario, we always have to return /alive OK 
-    // Otherwise we can't show the NGINX Circuit Breaker at work in detail (as Kubernetes would automatically take care of issues and restart a container if it would become unavailable)
-    // In production scenarios 
-    //if (!fakeAnError) {
-        res.status(200).send('OK');
-    //} else {
+    console.log('/alive');
 
-        // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-      //  setTimeout(() => {
-        //    res.status(503).send('ERROR');
-        //}, 30000)
-
-    //}
-
+    res.status(200).send('OK');
 });
 
+// We will use the /ready endpoint as the health check for the Circuit Breaker configuration in NGINX (see nginx-configmap.yaml)
 app.get('/ready', (req, res) => {
 
-    // If we are in error mode, wait a while before sending back a result... just like if we had a real issue in the container...
+    console.log('/ready');
+
+    // If we are in error mode, we'll just return a 503
     if (fakeAnError) {
-       // setTimeout(() => {
-            // Since this is in the time out callback, this may cause an error if res is already released
-            res.status(503).send('BUSY');
-       // }, 30000)
+        res.status(503).send('BUSY FROM ' + req.connection.localAddress);
     } else
         if (!ready) {
-            res.status(503).send('BUSY');
+            res.status(503).send('BUSY FROM ' + req.connection.localAddress);
         } else {
-            res.status(200).send('OK');
+            res.status(200).send('OK FROM ' + req.connection.localAddress);
         }
-
 });
-//app.get('/healthz', (req, res) => {
 
-//    if (!fakeAnError) {
-//        res.status(200).send('OK');
-//    } else {
-
-//        // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-//        setTimeout(() => {
-//            res.status(503).send('ERROR');
-//        }, 30000)
-
-//    }
-
-//});
-//app.get('/somerequest', (req, res) => {
-
-//    if (!fakeAnError) {
-//        res.status(200).send('SOMERESPONSE');
-//    } else {
-
-//        // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-//        setTimeout(() => {
-//            res.status(503).send('ERROR');
-//        }, 30000)
-
-//    }
-
-//});
+// This will be our main endpoint which we will be calling in our test case that returns some valid response
 app.get('/', (req, res) => {
 
+    console.log('/');
+
     if (!fakeAnError) {
-        res.status(200).send('SOMERESPONSE');
+        res.status(200).send('SOMERESPONSE FROM ' + req.connection.localAddress);
     } else {
-
-        // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-        //setTimeout(() => {
-            res.status(503).send('ERROR');
-       // }, 30000)
-
+        // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration, for more a realistic test
+        setTimeout(() => {
+            res.status(503).send('ERROR FROM ' + req.connection.localAddress);
+        }, 30000);
     }
 
 });
 
 // These 2 endpoints will toggle the "fakeerror" mode on/off for subsequent requests
 app.post('/fakeerrormodeon', (req, res) => {
+
+    console.log('/fakeerrormodeon');
+
     fakeAnError = true;
-    res.status(200).send('OK');
+    res.status(200).send('OK FROM ' + req.connection.localAddress);
 });
 app.post('/fakeerrormodeoff', (req, res) => {
+
+    console.log('/fakeerrormodeoff');
+
     fakeAnError = false;
-    res.status(200).send('OK');
+    res.status(200).send('OK FROM ' + req.connection.localAddress);
 });
 
 app.listen(PORT, HOST);
 console.log(`Running on http://${HOST}:${PORT}`);
 
+// All is done? Then mark this server ready
 ready = true;
 

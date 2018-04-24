@@ -16,21 +16,15 @@ To illustrate this, consider the following turn of events:
 
 ![Scenario without a Circuit Breaker](./images/BeforeScenario.png)
 
-Without a **Circuit Breaker**, the **Client** will keep trying to send a request to the **Service**, event after something went wrong and the **Service** isn't able to respond in time. Because the **Client** keeps retrying, possibly with many other clients simultaneously, the **Service** will have no opportunity to recover, if the issue at hand is only transient of nature.
+Without a **Circuit Breaker**, the **Client** will keep trying to send a request to the **Service**, even after something went wrong and the **Service** isn't able to respond in time. Because the **Client** keeps retrying, possibly with many other clients simultaneously, the **Service** will have no opportunity to recover, assuming the issue at hand is only transient of nature.
 
 Now, consider the following turn of events:
 
 ![Circuit Breaker Scenario](./images/CircuitBreakerScenario.png)
 
-With a Circuit Breaker, the **Client** will no longer be able to overload the **Service** with requests after the **Circuit Breaker** was "tripped" after the second timeout. The **Circuit Breaker** will avoid sending the **Service** any new requests for the next n seconds. This allows the **Service** to recover. Once a certain time has passed, the **Circuit Breaker** will slowly start passing on requests to the **Service** again until it is fully regained strength, as illustrated in the following State Diagram:
+With a Circuit Breaker, the **Client** will no longer be able to overload the **Service** with requests after the **Circuit Breaker** was "tripped" after the second failure. The **Circuit Breaker** will avoid sending the **Service** any new requests for the next *n* seconds. This allows the **Service** to recover. Once a certain time has passed, the **Circuit Breaker** will slowly start passing on requests to the **Service** again until it has fully regained strength, as illustrated in the following State Diagram:
 
 ![Circuit Breaker Scenario](./images/CircuitBreakerPattern.png)
-
-## Best Practices
-
-When using a Circuit Breaker there are a few best practices to follow:
-- Make sure to put each request in a different thread from a thread pool, and implement them as future or promise. This way when the thread pool is exhausted you can trigger the circuit breaker.
-- Have different thresholds for different type of errors. A timeout problem may have more retries available then let's say a connection problem. 
 
 Please check out these pages if you want to read more about the Circuit Breaker Pattern:
 - [Circuit Breaker - Martin Fowler](https://martinfowler.com/bliki/CircuitBreaker.html "Circuit Breaker - by Martin Fowler")
@@ -194,7 +188,7 @@ Next, you will need to assign your Azure user as owner to the newly created Azur
 
 So, for instance:
 
-    az ad sp create-for-rbac --scopes /subscriptions/3b7912c3-ad06-426e-8627-419123721111/resourceGroups/circuitbreaker/providers/Microsoft.ContainerRegistry/registriescircuitbreakerregistry --role Owner --password Test12345
+    az ad sp create-for-rbac --scopes /subscriptions/3b7912c3-ad06-426e-8627-419123721111/resourceGroups/circuitbreaker/providers/Microsoft.ContainerRegistry/registries/circuitbreakerregistry --role Owner --password Test12345
 
 That will result in an output similar to this:
 
@@ -234,9 +228,9 @@ It will ask you for your a user name and password. Please use the **appId** from
 
 Now you have created your own Docker registry in Azure Container Registry, you can now push Docker images to this registry.
 
-In the ```DummyServiceContainer``` folder you will find the NodeJS implementation of a container that will serve as our service which we need to protect from overloading, by implementing a circuit breaker ambassador in front of it.
+In the ```DummyServiceContainer``` folder you will find the NodeJS implementation of a container which we are going to protect from overloading by implementing a circuit breaker ambassador in front of it.
 
-To properly test this ```DummyServiceContainer``` we *need it to fail* so that it will trigger the Circuit Breaker. To make that happen, we added a ```/fakeerrormode``` endpoint. Once called the container will start faking timeout issues by just not sending a response within the timeout limit. 
+To properly test this ```DummyServiceContainer``` we *need it to fail* so that it will trigger the Circuit Breaker. To make that happen, we added a ```/fakeerrormodeon``` endpoint. Once that endpoint is called the container will start faking a failure or causing timeout issues by just not sending a response within the timeout limit. 
 
 Consider the ```server.js```:
     
@@ -246,116 +240,84 @@ Consider the ```server.js```:
     // We'll fake this crash by calling a non-blocking setTimeout() statement on incoming requests, when we are in this "fake error" mode.
     // We will also expose an endpoint to get this service out of the "fake error" mode so that triggers the Circuit Breaker to go in half-open state, before returning to fully closed state (=fully working state)
     'use strict';
-    
+
     const express = require('express');
-    
+
     var ready = false;
     console.log('Container is not yet ready.');
-    
+
     const PORT = 80;
     const HOST = '0.0.0.0';
     const app = express();
-    
+
     // We will be using this boolean to mimick an issue with this service
     var fakeAnError = false;
-    
+
+    // We will not mess with the /alive endpoint, because that triggers the killing and recreation of the container by Kubernetes
     app.get('/alive', (req, res) => {
-    
-    // In order for Kubernetes not to kill and restart our container in this test scenario, we always have to return /alive OK 
-    // Otherwise we can't show the NGINX Circuit Breaker at work in detail (as Kubernetes would automatically take care of issues and restart a container if it would become unavailable)
-    // In production scenarios 
-    //if (!fakeAnError) {
+
+        console.log('/alive');
+
     res.status(200).send('OK');
-    //} else {
-    
-    // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-      //  setTimeout(() => {
-    //res.status(503).send('ERROR');
-    //}, 30000)
-    
-    //}
-    
     });
-    
+
+    // We will use the /ready endpoint as the health check for the Circuit Breaker configuration in NGINX (see nginx-configmap.yaml)
     app.get('/ready', (req, res) => {
-    
-    // If we are in error mode, wait a while before sending back a result... just like if we had a real issue in the container...
-    if (fakeAnError) {
-    setTimeout(() => {
-    // Since this is in the time out callback, this may cause an error if res is already released
-    res.status(503).send('BUSY');
-    }, 30000)
-    } else
-    if (!ready) {
-    res.status(503).send('BUSY');
-    } else {
-    res.status(200).send('OK');
-    }
-    
-    });
-    //app.get('/healthz', (req, res) => {
-    
-    //if (!fakeAnError) {
-    //res.status(200).send('OK');
-    //} else {
-    
-    //// Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-    //setTimeout(() => {
-    //res.status(503).send('ERROR');
-    //}, 30000)
-    
-    //}
-    
-    //});
-    app.get('/somerequest', (req, res) => {
-    
-    if (!fakeAnError) {
-    res.status(200).send('SOMERESPONSE');
-    } else {
-    
-    // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-    setTimeout(() => {
-    res.status(503).send('ERROR');
-    }, 30000)
-    
-    }
-    
-    });
+
+        console.log('/ready');
+
+        // If we are in error mode, we'll just return a 503
+        if (fakeAnError) {
+        res.status(503).send('BUSY FROM ' + req.connection.localAddress);
+        } else
+            if (!ready) {
+                res.status(503).send('BUSY FROM ' + req.connection.localAddress);
+            } else {
+                res.status(200).send('OK FROM ' + req.connection.localAddress);
+            }
+        });
+
+    // This will be our main endpoint which we will be calling in our test case that returns some valid response
     app.get('/', (req, res) => {
-    
-    if (!fakeAnError) {
-    res.status(200).send('SOMERESPONSE');
-    } else {
-    
-    // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration
-    setTimeout(() => {
-    res.status(503).send('ERROR');
-    }, 30000)
-    
-    }
-    
+
+        console.log('/');
+
+        if (!fakeAnError) {
+            res.status(200).send('SOMERESPONSE FROM ' + req.connection.localAddress);
+        } else {
+            // Have a non-blocking delay in the response of this endpoint that waits more than the request/read timeout configured in the NGINX configuration, for more a realistic test
+            setTimeout(() => {
+                res.status(503).send('ERROR FROM ' + req.connection.localAddress);
+            }, 30000);
+        }
+
     });
-    
+
     // These 2 endpoints will toggle the "fakeerror" mode on/off for subsequent requests
     app.post('/fakeerrormodeon', (req, res) => {
-    fakeAnError = true;
-    res.status(200).send('OK');
+
+        console.log('/fakeerrormodeon');
+
+        fakeAnError = true;
+        res.status(200).send('OK FROM ' + req.connection.localAddress);
     });
     app.post('/fakeerrormodeoff', (req, res) => {
-    fakeAnError = false;
-    res.status(200).send('OK');
+
+        console.log('/fakeerrormodeoff');
+
+        fakeAnError = false;
+        res.status(200).send('OK FROM ' + req.connection.localAddress);
     });
-    
+
     app.listen(PORT, HOST);
     console.log(`Running on http://${HOST}:${PORT}`);
-    
+
+    // All is done? Then mark this server ready
     ready = true;
-    
-      
 
-As you can see from this source code, calling the service at the ```/fakeerrormodeon``` endpoint will set the boolean fakeAnError to true, which in turn will make all requests to the endpoint ```/``` delay for 30 seconds. Which should be enough to trigger the Circuit Breaker into thinking the service is unhealthy.
+As you can see from this source code, calling the service at the ```/fakeerrormodeon``` endpoint will set the boolean ```fakeAnError``` to true, which in turn will make all requests to the endpoint ```/``` and the health check on the endpoint ```/ready``` fail. This is enough to trigger the Circuit Breaker into thinking the service is unhealthy.
 
-> *Note: * In the source code above you can also see an endpoint ```/alive``` which returns OK. Even, if the ```fakeAnError``` boolean is true. This is necessary, because otherwise Kubernetes (which is managing this container) will also think the container became unhealthy and will trigger a kill and re-create of the container to bring it back up. This will interfere with our demonstration of the Circuit Breaker doing its work. So, we'll have Kubernetes think the container is healthy, even when our Circuit Breaker thinks is not.
+> *Note: * In the source code above you can also see an endpoint ```/alive``` which returns OK. Even, if the ```fakeAnError``` boolean is true. This is necessary, because otherwise Kubernetes (which is managing this container) will also think the container became unhealthy and will trigger a kill and re-create of the container to bring it back up. This will interfere with our demonstration of the Circuit Breaker doing its work. So, we'll have Kubernetes think the container is healthy, even when our Circuit Breaker we implemented ourselves in NGINX thinks it is not healthy.
 
 ### 2.1. Build Docker Image for the DummyServiceContainer
 
@@ -373,11 +335,14 @@ Then, execute the following command to push your Docker image to the Azure Conta
 
 Consider the following ```dummy-deployment.yaml```:
 
+    # This deployment fires up the dummy service that we are trying to protect from overload when it enters an unhealthy state, so that it can recover. Because this dummy-deployment 
+    # exposes a /fakeerrormodeon endpoint, we can make it "fake" an error that will trigger the circuit breaker by returning a 503 from the /ready endpoint (see server.js)
     apiVersion: extensions/v1beta1
     kind: Deployment
     metadata:
       name: dummy-deployment
     spec:
+      # For simplicity we'll just fire up a single replica in our load balancer for this service
       replicas: 1
       template:
         metadata:
@@ -386,24 +351,23 @@ Consider the following ```dummy-deployment.yaml```:
         spec:
           containers:
           - name: dummy-depoyment
-            image: mwittenbols/dummyservice
+            # This is were you point to the image you deployed to the Docker image you deployed to your ACR registry
+            image: circuitbreakerregistry.azurecr.io/dummyservice
             ports:
             - containerPort: 80
             livenessProbe:
               httpGet:
+                # The /alive endpoint is the one we will not touch in our test case, as this will trigger a kill and recreate from Kubernetes when this does not return 200
                 path: /alive
                 port: 80
                 scheme: HTTP
               initialDelaySeconds: 5
-              timeoutSeconds: 10
-          # In production scenarios restartPolicy should be set to "Always", but for now, since we want to demonstrate the behaviour of the Circuit Breaker pattern we   
-          # want to avoid Kubernetes killing and automatically restarting our container.
-          # This seems unsupported, although this could be an actual use case. Try it with a long termination grace period
-          # restartPolicy: "Never"
-          # Make it go slow on recreation of the container, so that we can properly test the Circuit Breaker
-          # terminationGracePeriodSeconds: 1200
+              periodSeconds: 10
+          imagePullSecrets:
+          # Here we refer to the secret you generated earlier so that you can access the Docker image from your private Docker hub / ACR registry
+          - name: circuitbreakerregistry.azurecr.io
 
-Notice the ```livenessProbe``` configuration, telling Kubernetes to check the container's health status by calling the ```/alive``` endpoint on our container every thing 10 seconds.
+Notice the ```livenessProbe``` configuration, telling Kubernetes to check the container's health status by calling the ```/alive``` endpoint on our container every 10 seconds.
 
 Deploy the ```DummyServiceContainer``` with the following command:
 
@@ -469,316 +433,379 @@ It should return:
 
 So, now you have verified the DummyServiceContainer is working as expected.
 
-### 2.6. Have the DummyServiceContainer cause timeouts
+### 2.6. Deploy the Backup DummyServiceContainer
 
-Now, let's see if we can have the ```DummyServiceContainer``` "fake" a problem. Execute the following cURL command to have the ```DummyServiceContainer``` start causing timeouts:
+Similar to the ```dummy-deployment``` we also want to fire up a backup server that we want to see process all the requests when the dummy-deployment server becomes unhealthy.
 
-    curl -d "" -s -D - http://13.90.157.180/fakeerrormodeon  
+Since this deployment will use the same Docker image you can simply fire up this backup server with the following commands:
+
+    kubectl create -f backup-deployment.yaml
+ 
+And then expose it to the outside world with the following command:
+
+    kubectl expose deployment backup-deployment --port=80 --type=LoadBalancer --name backup-deployment
+
+Then verify both the ```dummy-deployment``` and ```backup-deployment``` are working with the following command:
+
+    kubectl get pods --output=wide
+    kubectl get services
+
+Which should result in an output similar to this:
+
+    NAME                TYPE           CLUSTER-IP    EXTERNAL-IP     PORT(S)        AGE
+    backup-deployment   LoadBalancer   10.0.172.52   <pending>       80:32245/TCP   29m
+    dummy-deployment    LoadBalancer   10.0.255.90   13.72.104.153   80:32440/TCP   29m
+    kubernetes          ClusterIP      10.0.0.1      <none>          443/TCP        1d
+
+## 3. Deploying the Circuit Breaker
+
+Now we have the DummyServiceContainer (and a backup) up and running you are ready to deploy the actual circuit breaker.
+
+We will be demonstrating the Circuit Breaker pattern by using an NGINX Plus image in Kubernetes. NGINX Plus provides out-of-the-box features for Circuit Breaking.
+
+> **Note:** most of these features are only available in the **commercial version** of NGINX Plus.
+
+Before you can continue you need to build an NGINX Plus image yourself by following the instructions on this page: [https://www.nginx.com/blog/deploying-nginx-nginx-plus-docker/](https://www.nginx.com/blog/deploying-nginx-nginx-plus-docker/ "Creating a Docker Image of NGINX Plus")).
+
+### 3.1. NGINX Plus Circuit Breaker configuration
+
+To configure the Circuit Breaker in NGINX Plus, we will need to write a NGINX configuration that implements:
+- A main upstream server accepting your requests
+- A backup upstream server that will accept requests when the main upstream server becomes unhealthy
+- A ```match``` block to define the conditions under which the active health checker will deem a server healthy
+- An active health check that polls the servers regularly to determine if they are healthy
+
+First you need to create a ConfigMap object of the custom NGINX configuration so that Kubernetes can read it and apply it to your NGINX Plus container later on.
+
+Consider the following ```nginx-configmap.yaml```: 
+
+    # A ConfigMap is basically a key-value pair dictionary that can be used to customize the NGINX default configuration
+    kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      name: nginx-configuration
+      labels:
+        app: nginx-plus
+    data:
+      default.conf: |  
+        upstream backend {
+          zone backend 64k;
+          server dummy-deployment:80;
+          server backup-deployment:80 backup;
+        }
+        match conditions {
+          status 200-399;
+        }
+        server {
+          listen 80;
+          location / {	 
+            proxy_pass http://backend;
+            health_check uri=/ready interval=3s fails=1 passes=1;
+          }
+        }
+    # The default.conf section above contains the upstream and server configurations much you would expect to see in a NGINX nginx.conf configuration file.
+    # They will be added to the default NGINX configuration when deploying the nginx-plus image in the circuitbreaker.yaml file.
+    #
+    #  default.conf: |  
+    #    upstream backend {
+    # The following line is important to make sure the run state of the servers is shared amongst the worker processes for all the servers
+    #      zone backend 64k;
+    # The dummy-deployment is our server we are trying to protect from overload in the case it is in a transient failure
+    #      server dummy-deployment:80;
+    # Circuit Breaker Pattern: Re-routing traffic
+    # The backup-deployment is a server we will route traffic to, in case the dummy-deployment server is in a unhealthy state
+    #      server backup-deployment:80 backup;
+    #    }
+    # The following match block describe the conditions the active health_check needs to meet in order for the upstream server to be considered healthy. 
+    # If this condition is not met, the server will be considered unhealthy and (temporary) removed from the list of upstream servers
+    #    match conditions {
+    #      status 200-399;
+    #    }
+    #    server {
+    #      listen 80;
+    # This tells NGINX to send all traffic to the root / endpoint to the upstream backend servers (see above)
+    #      location / {	 
+    #        proxy_pass http://backend;
+    # Circuit Breaker Pattern: Active Health Checking: This monitors the upstream servers every 3 seconds on the /ready endpoint (see server.js) which in case it does not match
+    # the conditions above after the first fail, will be removed from the upstreams list and will no longer receive. This triggers the Open state of the Circuit Breaker Pattern.
+    # Only after the /ready endpoint returns 200 again after the first pass, will the server be deemed healthy again and return in the list of available upstream servers. 
+    # This corresponds to the Closed state of the Circuit Break Pattern. In the commercial version of NGINX a server configuration slow_start can be used to gradually
+    # send requests to a recovered server, rather than all requests as in this example. This corresponds to a truely Half Open state of the Circuit Break Pattern.
+    #        health_check uri=/ready interval=3s fails=1 passes=1;
+    #      }
+    #    }
+    #
+  
+This custom NGINX configuration will tell NGINX Plus to perform an active health check on the DummyServiceContainer  to determine if it is healthy. Once you trigger the DummyServiceContainer to start "faking" failures it will trigger the circuit breaker and the backup server will now start serving all the requests.  
+
+#### 3.1.1. health_check
+Notice the ```health_check``` block. This custom NGINX configuration will tell NGINX Plus to actively check the health of the ```DummyServiceContainer``` (exposed as http://dummy-deployment) at the ```/ready``` endpoint (not to confuse with the ```/active``` end-point which was for Kubernetes to avoid killing the ```DummyServiceContainer``` while we test the Circuit Breaker pattern).
+
+#### 3.1.2. match conditions
+Then, take a look at the ```match conditions``` block above. That will tell NGINX Plus that for the DummyServiceContainer to be considered healthy, it needs to match the conditions mentioned. ```DummyServiceContainer``` is considered healthy, when:
+- The HTTP response status code is between 200 and 339, and
+- The response body is "OK"
+
+#### 3.1.3. Deploy the ConfigMap
+
+Enter the following command to create the ConfigMap object for this configuration:
+
+    kubectl create -f nginx-configmap.yaml
+
+### 3.2. Deploy and Expose the NGINX Plus image
+
+Now, let's deploy the NGINX Plus image and expose it to the outside world so we can start our demonstration of the Circuit Breaker:
+
+    apiVersion: apps/v1beta1 # for versions before 1.9.0 use apps/v1beta2
+    kind: Deployment
+    metadata:
+      name: circuitbreaker
+    spec:
+      selector:
+        matchLabels:
+          app: circuitbreaker
+      replicas: 1 # The number of replicas to fire up. For now, we'll fire up 1, for simplicity.
+      template: 
+        metadata:
+          labels:
+            app: circuitbreaker
+        spec:
+          containers:
+          # If you decided to build your own NGINX Docker image, update the following line to point to your Docker hub or ACR Registry (or where ever you deployed the NGINX Plus image)
+          - image: tylerlu/nginxplus
+            name: circuitbreaker
+            ports:
+            - containerPort: 80
+            # Add a special VolumeMount to the NGINX Plus image that will use the ConfigMap you created in another command (see nginx-configmap.yaml) to override the default NGINX configuration settings
+            volumeMounts:
+            - name: config-volume
+              mountPath: /etc/nginx/conf.d
+          volumes:
+          - name: config-volume
+            configMap:
+              name: nginx-configuration
+
+    ---
+
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: circuitbreaker
+      labels:
+        app: circuitbreaker
+    spec:
+      type: LoadBalancer
+      ports:
+      - port: 80
+        targetPort: 80
+      selector:
+        app: circuitbreaker
+
+Enter the following command:
+
+    kubectl create -f circuitbreaker.yaml
+
+Now, you can check whether the NGINX Plus image was successfully deploy with the following command:
+
+    kubectl get pods --output=wide
+    kubectl get services --watch
+
+Which should result in an output similar to this:
+
+    backup-deployment-961811812-8fhgb   1/1       Running             0          52m         10.244.0.104   aks-nodepool1-11676488-0
+    circuitbreaker-2451672288-qrbrv     0/1       ContainerCreating   0          <invalid>   <none>         aks-nodepool1-11676488-0
+    dummy-deployment-2078959012-rxfd3   1/1       Running             0          52m         10.244.0.103   aks-    nodepool1-11676488-0
+
+    NAME                TYPE           CLUSTER-IP    EXTERNAL-IP     PORT(S)        AGE
+    backup-deployment   LoadBalancer   10.0.172.52   <pending>       80:32245/TCP   29m
+    circuitbreaker      ClusterIP      10.0.219.63   <pending>       80/TCP         11m
+    dummy-deployment    LoadBalancer   10.0.255.90   13.72.104.153   80:32440/TCP   29m
+    kubernetes          ClusterIP      10.0.0.1      <none>          443/TCP        1d
+
+And after a while, the EXTERNAL-IP address of the ```circuitbreaker``` should be populated:
+    circuitbreaker      ClusterIP      10.0.219.63   13.72.105.102   80/TCP         11m
+
+
+
+## 4. Test your Circuit Breaker
+
+### 4.1. Verify that the DummyServiceContainer is working correctly (=Closed State)
+
+Execute the following command 3 times and you will see the same result each time (where the IP address matches the EXTERNAL-IP address of the ```circuitbreaker``` service):
+
+    curl -v http://13.72.105.102
+
+Which should return the following result every time:
+
+    > GET / HTTP/1.1
+    > User-Agent: curl/7.35.0
+    > Host: circuitbreaker
+    > Accept: */*
+    >
+    < HTTP/1.1 200 OK
+    < Server: nginx/1.13.7
+    < Date: Wed, 04 Apr 2018 23:48:51 GMT
+    < Content-Type: text/html; charset=utf-8
+    < Content-Length: 30
+    < Connection: keep-alive
+    < X-Powered-By: Express
+    < ETag: W/"1e-giY/d6ahGpyL78AYJfuF81A6x5M"
+    <
+    SOMERESPONSE FROM 10.244.0.103
+
+Notice the IP address on the last line that should match the CLUSTER-IP of the ```dummy-deployment-xxx-yyy``` pod (see ```kubectl get pods --output=wide```).
+
+### 4.1. Have the DummyServiceContainer cause timeouts
+
+Now, let's see if we can have the ```DummyServiceContainer``` "fake" a problem. Execute the following cURL command to have the ```DummyServiceContainer``` start causing timeouts (where the IP address matches the EXTERNAL-IP address of the ```dummy-deployment``` service):
+
+    curl -d "" -s -D - http://13.72.104.153/fakeerrormodeon  
 
 Which returns: 
 
     OK
 
-Now, if you would call the same ```/``` endpoint as before, you will see the request will take a long time and respond with ```BUSY```
+Now, the DummyContainerService has become unhealthy. 
 
-    curl http://13.90.157.180/
+### 4.2. Verify that the backup-deployment started processing the requests
 
-After a minute:
+Execute the following command 3 times and you will see the same result each time (where the IP address matches the EXTERNAL-IP address of the ```circuitbreaker``` service):
 
-    BUSY
+    curl -v http://13.72.105.102
 
-The same will happen for the ```/ready``` endpoint which we will implement to tell the Circuit Breaker that the ```DummyServiceContainer``` is experiencing an issue.
+Which should return the following result every time:
 
-    curl http://13.90.157.180/
+    > GET / HTTP/1.1
+    > User-Agent: curl/7.35.0
+    > Host: circuitbreaker
+    > Accept: */*
+    >
+    < HTTP/1.1 200 OK
+    < Server: nginx/1.13.7
+    < Date: Wed, 04 Apr 2018 23:48:51 GMT
+    < Content-Type: text/html; charset=utf-8
+    < Content-Length: 30
+    < Connection: keep-alive
+    < X-Powered-By: Express
+    < ETag: W/"1e-giY/d6ahGpyL78AYJfuF81A6x5M"
+    <
+    SOMERESPONSE FROM 10.244.0.104
 
-After a minute:
+Now, notice the IP address on the last line that now matches the CLUSTER-IP of the ```backend-deployment-xxx-yyy``` pod (see ```kubectl get pods --output=wide```) and no longer the ```dummy-deployment```.
 
-    BUSY
+This proves the circuit breaker kicked in.
 
-As you can see, when you execute the following command
+### 4.3. Make the DummyServiceContainer healthy again.
 
-    curl http://13.90.157.180/alive
+Now, let's stop having the ```DummyServiceContainer``` "fake" problems, by executing the following cURL command:
 
-It will still immediately return: 
+    curl -d "" -s -D - http://13.72.104.153/fakeerrormodeoff
+
+Which returns: 
 
     OK
 
-Which is what you want, as we do not want to trigger Kubernetes into killing and re-creating the container.
+Now, the DummyContainerService has become healthy again.
 
-With this, we are ready to start deploying the Circuit Breaker.
+### 4.4. Verify that the DummyServiceContainer is accepting requests again
 
-## 3. Deploying the Circuit Breaker with NGINX Plus and Kubernetes in Azure Container Services (AKS)
+Execute the following command 3 times and you will see the same result each time (where the IP address matches the EXTERNAL-IP address of the ```circuitbreaker``` service):
+
+    curl -v http://13.72.105.102
+
+Which should return the following result every time:
+
+    > GET / HTTP/1.1
+    > User-Agent: curl/7.35.0
+    > Host: circuitbreaker
+    > Accept: */*
+    >
+    < HTTP/1.1 200 OK
+    < Server: nginx/1.13.7
+    < Date: Wed, 04 Apr 2018 23:48:51 GMT
+    < Content-Type: text/html; charset=utf-8
+    < Content-Length: 30
+    < Connection: keep-alive
+    < X-Powered-By: Express
+    < ETag: W/"1e-giY/d6ahGpyL78AYJfuF81A6x5M"
+    <
+    SOMERESPONSE FROM 10.244.0.103
+
+Notice the IP address on the last line that now matches the CLUSTER-IP of the ```dummy-deployment-xxx-yyy``` pod again (see ```kubectl get pods --output=wide```).
+
+That proves the Circuit Breaker worked and this concludes the lab.
+
+![Image of the Finish-line](./images/FinishSmall.png)
+
+## 5. NGINX Plus Background Information 
 
 NGINX Plus has a robust active health‑check system with many options for checking and responding to health issues.
 
-### 3.1. Passive Health Checking vs. Active Health Checking
+It also supports rate-limiting, slow-starts and caching in addition to the features discussed in this lab to handle or even prevent failures.
 
-For passive health checks, NGINX and NGINX Plus monitor transactions **as they happen**, and try to resume failed connections. If the transaction still cannot be resumed, NGINX and NGINX Plus mark the server as unavailable and temporarily stop sending requests to it until it is marked active again.
+### 5.1. Passive Health Checking vs. Active Health Checking
+
+For passive health checks, NGINX and NGINX Plus monitor transactions **as they happen** and try to resume failed connections. If the transaction still cannot be resumed, NGINX and NGINX Plus mark the server as unavailable and temporarily stop sending requests to it until it is marked active again.
 
 The circuit breaker pattern can **prevent failure before it happens** by reducing traffic to an unhealthy service or routing requests away from it. This requires an active health check connected to an introspective health monitor on each service. Unfortunately, a passive health‑check does not do the trick, as it only checks for failure – at which point, it is already too late to take preventative action. It is for this reason that the open source NGINX software (OSS) cannot implement the circuit breaker pattern – it only supports passive health checks.
 
 NGINX Plus can periodically check the health of upstream servers by sending special health‑check requests to each server and verifying the correct response.
 
-You can read more about the Circuit Breaker Patter in NGINX Plus here: https://www.nginx.com/blog/microservices-reference-architecture-nginx-circuit-breaker-pattern/
+You can read more about the Circuit Breaker Patter in NGINX Plus here: [https://www.nginx.com/blog/microservices-reference-architecture-nginx-circuit-breaker-pattern/](https://www.nginx.com/blog/microservices-reference-architecture-nginx-circuit-breaker-pattern/ "https://www.nginx.com/blog/microservices-reference-architecture-nginx-circuit-breaker-pattern/")
 
-### 3.2. Configuring NGINX Plus for Circuit Breaking
+## 6. Summary
 
-Consider the following ```nginx-circuitbreaker.conf``` NGINX configuration file in the ```conf.d``` folder:
+These are the commands you executed:
 
-    # In case of any errors try the next upstream server before returning an error
-    proxy_next_upstream  error timeout invalid_header http_502 http_503 http_504;
-    
-    upstream backend {
-    	least_conn;
-    
-    	# PASSIVE HEALTH CHECKS
-    	# 
-    	# For passive health checks, NGINX and NGINX Plus monitor transactions as they happen, and try to resume failed connections. If the transaction still cannot be resumed, NGINX and NGINX 
-    	# Plus mark the server as unavailable and temporarily stop sending requests to it until it is marked active again.
-    
-    	server dummy-deployment:80; // max_fails=1 fail_timeout=5s; # slow_start=30s;
-    # server dummy-deployment:80 max_fails=2 fail_timeout=30s slow_start=30s;
-    	# server dummy-deployment:80 max_fails=2 fail_timeout=30s slow_start=30s;
-    }
-    
-    server {
-    
-    	# listen 443;
-    	listen 80;
-    	
-    	# Note: The Nginx image we are including at this point, doesn't support Nginx Plus features listed below
-    # location /health-check {
-     #internal;
-     #health_check uri=/health match=conditions fails=1 interval=3s;
-    	 #	 proxy_pass http://backend;
-     #}
-    
-    	 # These are the conditions the /health requests to the service must match in order for it to be deemed healthy
-    	 # https://docs.nginx.com/nginx/admin-guide/load-balancer/http-health-check/
-    	 match conditions {
-     status 200-399;
-     body ~ 'OK';
-     }
-    
-    	 location / {
-    	 	 proxy_pass http://backend;
-    		 add_header Content-Type text/plain;
-    		 # Retry Pattern
-    		 # health_check interval=10 fails=3 passes=2;
-    
-     # ACTIVE HEALTH CHECKS
-     # 
-     # NGINX Plus can periodically check the health of upstream servers by sending special health‑check requests to each server and verifying the correct response.
-     #
-     # The "uri" parameter is the endpoint on the "dummyservice" server that will be used to determine health of the server. 
-     # The "match" parameter is the conditions the response of /alive has to match in order for it to be deemed healthy
-     # The "fails" parameter is the number after how many failed attempts the server is deemed to be unhealthy
-     # The "intervals" parameter indicates the delay between calls to /alive to check the server's health
-     # The "passes" parameter is the number of successful calls to /alive are needed to mark the server as healthy again.
-    		 health_check uri=/ready match=conditions fails=1 interval=10s passes=10;
-    	 }
-    
-    	 location /healthz {
-     access_log off;
-     return 200;
-     }
-    
-    }
-    
-#### 3.2.1. health_check
-Notice the ```health_check``` block. This custom NGINX configuration will tell NGINX Plus to actively check the health of the ```DummyServiceContainer``` (exposed as http://dummy-deployment) at the ```/ready``` endpoint (not to confuse with the ```/active``` end-point which was for Kubernetes to avoid killing the ```DummyServiceContainer``` while we test the Circuit Breaker pattern).
+    docker build . -t circuitbreakerregistry.azurecr.io/dummyservice
+    docker push circuitbreakerregistry.azurecr.io/dummyservice
 
-#### 3.2.2. match conditions
-Then, take a look at the ```match conditions``` block in the ```nginx-circuitbreaker.conf``` above. That will tell NGINX Plus that for the DummyServiceContainer to be considered healthy, it needs to match the conditions mentioned. ```DummyServiceContainer``` is considered healthy, when:
-- The HTTP response status code is between 200 and 339, and
-- The response body is "OK"
+    kubectl create -f dummy-deployment.yaml
+    kubectl create -f backup-deployment.yaml
 
-### 3.3. Create a ConfigMap object for nginx-circuitbreaker.conf
+    kubectl expose deployment dummy-deployment --port=80 --type=LoadBalancer --name dummy-deployment
+    kubectl expose deployment backup-deployment --port=80 --type=LoadBalancer --name backup-deployment
 
-In order for Kubernetes to be able to use the custom NGINX configuration file ```nginx-circuitbreaker.conf``` when firing up the NGINX Plus image, you need to create a ConfigMap object of it, after navigating to the root folder of this lab:
-
-    kubectl create configmap circuitbreaker-conf --from-file=conf.d
-
-### 3.4. Deploying the Circuit Breaker Deployment
-
-Consider the file ```circuitbreaker-deployment.yaml```:
-    
-    #apiVersion: apps/v1beta1 # for versions before 1.9.0 use apps/v1beta2
-    apiVersion: extensions/v1beta1
-    kind: Deployment
-    metadata:
-      name: circuitbreaker-deployment
-    spec:
-      replicas: 1
-      selector:
-    matchLabels:
-      app: nginx-ingress
-      template: # create pods using pod definition in this template
-    metadata:
-      labels:
-    app: nginx-ingress
-      annotations:
-    prometheus.io/port: '10254'
-    prometheus.io/scrape: 'true'
-    spec:
-      containers:
-    #  - image: nginxdemos/nginx-ingress
-      - image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.9.0-beta.17
-    imagePullPolicy: Always
-    name: nginx-ingress-controller
-    ports:
-    - containerPort: 80
-      hostPort: 80
-    - containerPort: 80
-      hostPort: 443
-    env:
-    - name: POD_NAME
-      valueFrom:
-    fieldRef:
-      fieldPath: metadata.name
-    - name: POD_NAMESPACE
-      valueFrom:
-    fieldRef:
-      fieldPath: metadata.namespace
-    args:
-    - /nginx-ingress-controller
-    #- -default-server-tls-secret=$(POD_NAMESPACE)/circuitbreaker-secret
-    - --default-backend-service=$(POD_NAMESPACE)/dummy-deployment
-    # this is where we are able to override the default nginx.conf and use the one we created in the conf.d folder and turned into a ConfigMap object
-    #- -nginx-configmaps=$(POD_NAMESPACE)/circuitbreaker-conf
-    - --configmap=$(POD_NAMESPACE)/circuitbreaker-conf
-    livenessProbe:
-      failureThreshold: 1
-      httpGet:
-    path: /healthz
-    port: 10254
-    scheme: HTTP
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      successThreshold: 1
-      timeoutSeconds: 1
-    readinessProbe:
-      failureThreshold: 1
-      httpGet:
-    path: /healthz
-    port: 10254
-    scheme: HTTP
-      periodSeconds: 10
-      successThreshold: 1
-      timeoutSeconds: 1
-
-
-In order to use the NGINX Plus features we will be deploying an NGINX Ingress Controller with NGINX Plus features. An Ingress is basically an API object that manages external access to services a cluster. In this case we will be using this publicly avaialable NGINX Ingress Controller image: ```quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.9.0-beta.17```
-
-Notice how in the ```circuitbreaker-deployment.yaml``` file we tell the Ingress Controller to use the ConfigMap you created earlier with the ```--configmap``` startup parameter.
-
-Now, deploy the Circuit Breaker with the following command:
-
-    kubectl create -f circuitbreaker-deployment.yaml
-
-### 3.5. Expose the Circuit Breaker Deployment
-
-Then, execute the following command to have an EXTERNAL IP address assigned to your Circuit Breaker implementation:
-
-    kubectl expose deployment circuitbreaker-deployment --port=80 --type=LoadBalancer --name circuitbreaker-deployment
-
-### 3.6. Verify the Circuit Breaker Deployment
-
-By executing the following command, you can verify the pods have been successfully created:
-
-    kubectl get pods 
-
-This should result in an output like this:
-
-    NAME                                        READY     STATUS              RESTARTS   AGE
-    circuitbreaker-deployment-412859981-p60mh   0/1       ContainerCreating   0          <invalid>
-    dummy-deployment-2078959012-qxvv1           1/1       Running             0          5m
-
-And by executing the following command, you can wait for the EXTERNAL IP address to be assigned:
-
+    kubectl get pods --output=wide
+    kubectl get services
     kubectl get services --watch
 
-Which should result in the following output:
+    kubectl create -f nginx-configmap.yaml
+    kubectl create -f circuitbreaker.yaml
 
-    NAME                        TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)        AGE
-    circuitbreaker-deployment   LoadBalancer   10.0.23.237    <pending>       80:31055/TCP   <invalid>
-    dummy-deployment            LoadBalancer   10.0.130.149   13.90.157.180   80:30009/TCP   4m
-    kubernetes                  ClusterIP      10.0.0.1       <none>          443/TCP        41m
+    kubectl get pods --output=wide
+    kubectl get services 
 
-And, after a while the EXTERNAL IP address will be populated:
+    curl -v http://13.72.105.102
+    curl -d "" -s -D - http://13.72.104.153/fakeerrormodeon
+    curl -v http://13.72.105.102
+    curl -d "" -s -D - http://13.72.104.153/fakeerrormodeoff
+    curl -v http://13.72.105.102
 
-    NAME                        TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)        AGE
-    circuitbreaker-deployment   LoadBalancer   10.0.23.237    <pending>       80:31055/TCP   <invalid>
-    dummy-deployment            LoadBalancer   10.0.130.149   13.90.157.180   80:30009/TCP   4m
-    kubernetes                  ClusterIP      10.0.0.1       <none>          443/TCP        41m
-    circuitbreaker-deployment   LoadBalancer   10.0.23.237    52.170.199.169  80:31055/TCP   <invalid>
+And if you do not like to wait for external IP address to be issued, so you can fire cURL statements inside the pods.
 
-Now we can start testing the Circuit Breaker through the external IP address: 52.170.199.169
+    kubectl run curl-circuitbreaker-deployment --image=radial/busyboxplus:curl -i --tty --rm
 
-Let's first confirm that the endpoint is working. Execute the following command:
+These are the commands to quickly delete the deployments, so you can repeat the steps above:
 
-    curl http://52.170.199.169/alive
+    kubectl delete service circuitbreaker
+    kubectl delete deployment circuitbreaker
 
-Which should result in:
+    kubectl delete configmap nginx-configuration
 
-    OK
+    kubectl delete service dummy-deployment
+    kubectl delete deployment dummy-deployment
 
-## 4. Testing the Circuit Breaker
+    kubectl delete service backup-deployment
+    kubectl delete deployment backup-deployment
 
-Now we have our Circuit Breaker and Dummy Service up and running, we can test the Circuit Breaker pattern. We expect the Circuit Breaker to be triggered after the first failed request. Then, the second and third requests should return with an error much sooner than the first failed request as the Circuit Breaker now avoid sending the request to the unhealthy service.
+    docker rmi circuitbreakerregistry.azurecr.io/dummyservice
 
-### 4.1. Test 1: Circuit Breaker Closed
+## 7. Conclusion
 
-When the Circuit Breaker is closed, everything should behave as expected:
+In this lab you learned how to deploy an NGINX Plus image and configure it to implement a basic Circuit Breaker pattern.
 
-    curl http://52.170.199.169/
-
-Should result in:
-
-    SOMERESPONSE
-
-### 4.2. Test 2: Put the Dummy Service Container into "fake" error mode
-
-Then, you want to trigger the Circuit Breaker by first having the Dummy Service Container "fake" an unhealthy state, with the "backdoor" endpoint you implemented.
-
-    curl http://52.170.199.169/fakeerrormodeon -d "" -S
-
-Which will result in:
-
-    OK
-
-### 4.3. Test 3: Test First Failed Request that will trigger the Circuit Breaker
-
-Now, you will attempt a request, with the now unhealthy Dummy Service Container, that will should trigger the Circuit Breaker:
-
-      curl http://52.170.199.169/
-
-Should result in a delay of 30 seconds, after which we'll see the following error:
-
-    
-
-TODO!!!!!!!!!!!!!!!!!
-
-
-
-
-
-
-
-
-
-
-![Image of the Finish-line](./images/FinishSmall.png)
-
-## 7. Debugging your Kubernetes Pod Deployment
-
-## 8. Summary
-
-
-## 9. Conclusion
-
-
-## 10. Contributors ##
+## 8. Contributors ##
 | Roles                                    			| Author(s)                                			|
 | -------------------------------------------------	| ------------------------------------------------- |
 | Project Lead / Architect / Lab Manuals		    | Manfred Wittenbols (Canviz) @mwittenbols          |
@@ -786,11 +813,11 @@ TODO!!!!!!!!!!!!!!!!!
 | Sponsor / Support                        			| Phil Evans (Microsoft)                            |
 | Sponsor / Support                        			| Anand Chandramohan (Microsoft)                    |
 
-## 11. Version history ##
+## 9. Version history ##
 
 | Version | Date          		| Comments        |
 | ------- | ------------------- | --------------- |
-| 1.0     | March 20, 2018 	| Initial release |
+| 1.0     | March 20, 2018 	    | Initial release |
 
 ## Disclaimer ##
 **THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.**
