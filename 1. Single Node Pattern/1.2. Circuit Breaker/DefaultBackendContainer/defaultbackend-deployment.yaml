@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: defaultbackend-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: defaultbackend-deployment
+    spec:
+      containers:
+      - name: defaultbackend-depoyment
+        image: circuitbreakerregistry.azurecr.io/defaultbackend
+        ports:
+        - containerPort: 80
+      imagePullSecrets:
+      - name: circuitbreakerregistry.azurecr.io

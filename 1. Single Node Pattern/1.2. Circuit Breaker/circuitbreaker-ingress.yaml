@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: circuitbreaker-ingress
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              serviceName: circuitbreaker-service
+              servicePort: 80
+          - path: /alive
+            backend:
+              serviceName: circuitbreaker-service
+              servicePort: 80
+          - path: /ready
+            backend:
+              serviceName: circuitbreaker-service
+              servicePort: 80
+      host: circuitbreaker-service

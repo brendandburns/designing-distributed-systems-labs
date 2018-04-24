@@ -1,0 +1,54 @@
+#apiVersion: apps/v1beta1 # for versions before 1.9.0 use apps/v1beta2
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: circuitbreaker-deployment
+spec:
+  replicas: 1
+  template: # create pods using pod definition in this template
+    metadata:
+      labels:
+        app: nginx-ingress-controller
+    spec:
+      containers:
+#      - image: nginxdemos/nginx-ingress
+      - image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.9.0-beta.17
+        imagePullPolicy: Always
+        name: nginx-ingress
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+            scheme: HTTP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 10
+          timeoutSeconds: 1
+        ports:
+        - containerPort: 80
+          hostPort: 80
+        - containerPort: 443
+          hostPort: 443
+        args:
+        - /nginx-ingress-controller
+        - --default-ssl-certificate=$(POD_NAMESPACE)/circuitbreaker-secret
+        #- --default-backend-service=$(POD_NAMESPACE)/dummy-deployment
+        - --default-backend-service=$(POD_NAMESPACE)/defaultbackend-deployment
+        # this is where we are able to override the default nginx.conf and use the one we created in the conf.d folder and turned into a ConfigMap object
+        #- -nginx-configmaps=$(POD_NAMESPACE)/circuitbreaker-conf
+        - --configmap=$(POD_NAMESPACE)/circuitbreaker-conf
+        - --v=3
+        #- --ingress-class=nginx-internal
+        - --ingress-class=nginx

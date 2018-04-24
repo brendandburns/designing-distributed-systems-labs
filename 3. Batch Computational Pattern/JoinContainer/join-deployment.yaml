@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: join-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: join-deployment
+    spec:
+      containers:
+      - name: join-depoyment
+        image: batchprocessingthumbnailgeneratorregistry.azurecr.io/batchprocessing-join
+        ports:
+        - containerPort: 8084
+        env:
+        - name: EVENT_HUB_CONNECTION_STRING
+          value: "Endpoint=sb://batchprocessingthumbnailgeneratorez4fo7.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=1l62BiW9cOZLNoF/0Ta2KYWUPzm5cWh/6CsOKLUYIfU="
+      imagePullSecrets:
+      - name: batchprocessingthumbnailgeneratorregistry.azurecr.io

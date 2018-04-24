@@ -1,0 +1,56 @@
+# A ConfigMap is basically a key-value pair dictionary that can be used to customize the NGINX default configuration
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginx-configuration
+  labels:
+    app: nginx-plus
+data:
+  default.conf: |  
+    upstream backend {
+      zone backend 64k;
+      server dummy-deployment:80;
+      server backup-deployment:80 backup;
+    }
+    match conditions {
+      status 200-399;
+    }
+    server {
+      listen 80;
+      location / {	 
+        proxy_pass http://backend;
+        health_check uri=/ready interval=3s fails=1 passes=1;
+      }
+    }
+# The default.conf section above contains the upstream and server configurations much you would expect to see in a NGINX nginx.conf configuration file.
+# They will be added to the default NGINX configuration when deploying the nginx-plus image in the circuitbreaker.yaml file.
+#
+#  default.conf: |  
+#    upstream backend {
+# The following line is important to make sure the run state of the servers is shared amongst the worker processes for all the servers
+#      zone backend 64k;
+# The dummy-deployment is our server we are trying to protect from overload in the case it is in a transient failure
+#      server dummy-deployment:80;
+# Circuit Breaker Pattern: Re-routing traffic
+# The backup-deployment is a server we will route traffic to, in case the dummy-deployment server is in a unhealthy state
+#      server backup-deployment:80 backup;
+#    }
+# The following match block describe the conditions the active health_check needs to meet in order for the upstream server to be considered healthy. 
+# If this condition is not met, the server will be considered unhealthy and (temporary) removed from the list of upstream servers
+#    match conditions {
+#      status 200-399;
+#    }
+#    server {
+#      listen 80;
+# This tells NGINX to send all traffic to the root / endpoint to the upstream backend servers (see above)
+#      location / {	 
+#        proxy_pass http://backend;
+# Circuit Breaker Pattern: Active Health Checking: This monitors the upstream servers every 3 seconds on the /ready endpoint (see server.js) which in case it does not match
+# the conditions above after the first fail, will be removed from the upstreams list and will no longer receive. This triggers the Open state of the Circuit Breaker Pattern.
+# Only after the /ready endpoint returns 200 again after the first pass, will the server be deemed healthy again and return in the list of available upstream servers. 
+# This corresponds to the Closed state of the Circuit Break Pattern. In the commercial version of NGINX a server configuration slow_start can be used to gradually
+# send requests to a recovered server, rather than all requests as in this example. This corresponds to a truely Half Open state of the Circuit Break Pattern.
+#        health_check uri=/ready interval=3s fails=1 passes=1;
+#      }
+#    }
+#

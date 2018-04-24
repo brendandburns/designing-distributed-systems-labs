@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: circuitbreaker-service
+  labels:
+    app: nginx-load-balancer
+    name: service-nginx-lb
+spec:
+  # 
+  externalTrafficPolicy: Local
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: port-tcp-80
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: port-tcp-443
+  selector:
+    app: nginx-ingress-controller
+  type: LoadBalancer

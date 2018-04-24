@@ -1,0 +1,16 @@
+{
+  "name": "thumbnail",
+  "version": "1.0.0",
+  "description": "Node.js on Docker",
+  "author": "Manfred Wittenbols <manfredw@canviz.com>",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.16.1",
+    "uuid": "^3.2.1",
+    "azure-event-hubs": "^0.0.8",
+    "simple-barrier": "^1.0.4"
+  }
+}

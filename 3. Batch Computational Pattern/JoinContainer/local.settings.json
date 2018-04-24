@@ -1,0 +1,5 @@
+{
+    "connectionStrings": {
+        "eventHub": "Endpoint=sb://batchprocessingthumbnailgeneratorez4fo7.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=1l62BiW9cOZLNoF/0Ta2KYWUPzm5cWh/6CsOKLUYIfU="
+    }
+}

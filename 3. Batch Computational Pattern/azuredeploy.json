@@ -1,0 +1,273 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "baseName": {
+            "defaultValue": "batchprocessingthumbnailgenerator",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "nameSuffix": "[substring(uniqueString(resourceGroup().id), 0, 6)]",
+        "storageAccountName": "[concat('storage', variables('nameSuffix'))]",
+        "eventHubName": "[concat(parameters('baseName'), variables('nameSuffix'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "name": "[variables('storageAccountName')]",
+            "apiVersion": "2017-10-01",
+            "location": "[variables('location')]",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": false,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces",
+            "name": "[variables('eventHubName')]",
+            "sku": {
+                "name": "Standard",
+                "tier": "Standard",
+                "capacity": 1
+            },
+            "apiVersion": "2017-04-01",
+            "location": "[variables('location')]",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "isAutoInflateEnabled": false,
+                "maximumThroughputUnits": 0
+            },
+            "resources": [
+                {
+                    "type": "AuthorizationRules",
+                    "name": "RootManageSharedAccessKey",
+                    "apiVersion": "2017-04-01",
+                    "location": "[variables('location')]",
+                    "scale": null,
+                    "properties": {
+                        "rights": [
+                            "Listen",
+                            "Manage",
+                            "Send"
+                        ]
+                    },
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]"
+                    ]
+                },
+                {
+                    "type": "eventhubs",
+                    "name": "animatedgifevent",
+                    "apiVersion": "2017-04-01",
+                    "location": "[variables('location')]",
+                    "scale": null,
+                    "properties": {
+                        "messageRetentionInDays": 1,
+                        "partitionCount": 2,
+                        "status": "Active"
+                    },
+                    "resources": [
+                        {
+                            "type": "consumergroups",
+                            "name": "$Default",
+                            "apiVersion": "2017-04-01",
+                            "location": "[variables('location')]",
+                            "scale": null,
+                            "properties": {},
+                            "dependsOn": [
+                                "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]",
+                                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('eventHubName'), 'animatedgifevent')]"
+                            ]
+                        }
+                    ],
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]"
+                    ]
+                },
+                {
+                    "type": "eventhubs",
+                    "name": "animatedgifreadyevent",
+                    "apiVersion": "2017-04-01",
+                    "location": "[variables('location')]",
+                    "scale": null,
+                    "properties": {
+                        "messageRetentionInDays": 1,
+                        "partitionCount": 2,
+                        "status": "Active"
+                    },
+                    "resources": [
+                        {
+                            "type": "consumergroups",
+                            "name": "$Default",
+                            "apiVersion": "2017-04-01",
+                            "location": "[variables('location')]",
+                            "scale": null,
+                            "properties": {},
+                            "dependsOn": [
+                                "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]",
+                                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('eventHubName'), 'animatedgifreadyevent')]"
+                            ]
+                        }
+                    ],
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]"
+                    ]
+                },
+                {
+                    "type": "eventhubs",
+                    "name": "framecaptureevent",
+                    "apiVersion": "2017-04-01",
+                    "location": "[variables('location')]",
+                    "scale": null,
+                    "properties": {
+                        "messageRetentionInDays": 1,
+                        "partitionCount": 2,
+                        "status": "Active"
+                    },
+                    "resources": [
+                        {
+                            "type": "consumergroups",
+                            "name": "$Default",
+                            "apiVersion": "2017-04-01",
+                            "location": "[variables('location')]",
+                            "scale": null,
+                            "properties": {},
+                            "dependsOn": [
+                                "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]",
+                                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('eventHubName'), 'framecaptureevent')]"
+                            ]
+                        }
+                    ],
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]"
+                    ]
+                },
+                {
+                    "type": "eventhubs",
+                    "name": "framecapturereadyevent",
+                    "apiVersion": "2017-04-01",
+                    "location": "[variables('location')]",
+                    "scale": null,
+                    "properties": {
+                        "messageRetentionInDays": 1,
+                        "partitionCount": 2,
+                        "status": "Active"
+                    },
+                    "resources": [
+                        {
+                            "type": "consumergroups",
+                            "name": "$Default",
+                            "apiVersion": "2017-04-01",
+                            "location": "[variables('location')]",
+                            "scale": null,
+                            "properties": {},
+                            "dependsOn": [
+                                "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]",
+                                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('eventHubName'), 'framecapturereadyevent')]"
+                            ]
+                        }
+                    ],
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]"
+                    ]
+                },
+                {
+                    "type": "eventhubs",
+                    "name": "notifyevent",
+                    "apiVersion": "2017-04-01",
+                    "location": "[variables('location')]",
+                    "scale": null,
+                    "properties": {
+                        "messageRetentionInDays": 1,
+                        "partitionCount": 2,
+                        "status": "Active"
+                    },
+                    "resources": [
+                        {
+                            "type": "consumergroups",
+                            "name": "$Default",
+                            "apiVersion": "2017-04-01",
+                            "location": "[variables('location')]",
+                            "scale": null,
+                            "properties": {},
+                            "dependsOn": [
+                                "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]",
+                                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('eventHubName'), 'notifyevent')]"
+                            ]
+                        }
+                    ],
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]"
+                    ]
+                },
+                {
+                    "type": "eventhubs",
+                    "name": "thumbnailevent",
+                    "apiVersion": "2017-04-01",
+                    "location": "[variables('location')]",
+                    "scale": null,
+                    "properties": {
+                        "messageRetentionInDays": 1,
+                        "partitionCount": 2,
+                        "status": "Active"
+                    },
+                    "resources": [
+                        {
+                            "type": "consumergroups",
+                            "name": "$Default",
+                            "apiVersion": "2017-04-01",
+                            "location": "[variables('location')]",
+                            "scale": null,
+                            "properties": {},
+                            "dependsOn": [
+                                "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]",
+                                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('eventHubName'), 'thumbnailevent')]"
+                            ]
+                        }
+                    ],
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('eventHubName'))]"
+                    ]
+                }
+            ],
+            "dependsOn": []
+        }
+    ],
+    "outputs": {
+        "storageAccountConnectionString": {
+            "type": "string",
+            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listkeys(resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), '2015-05-01-preview').key1,';')]"
+        },
+        "eventHubConnectionString": {
+            "type": "string",
+            "value": "[listkeys(resourceId('Microsoft.EventHub/namespaces/AuthorizationRules', variables('eventHubName'), 'RootManageSharedAccessKey'), '2017-04-01').primaryConnectionString]"
+        }
+    }
+}

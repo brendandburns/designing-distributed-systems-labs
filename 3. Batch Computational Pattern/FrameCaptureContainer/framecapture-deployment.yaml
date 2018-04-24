@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: framecapture-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: framecapture-deployment
+    spec:
+      containers:
+      - name: framecapture-depoyment
+        image: batchprocessingthumbnailgeneratorregistry.azurecr.io/batchprocessing-framecapture
+        ports:
+        - containerPort: 8082
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-sock-volume
+        env:
+        - name: EVENT_HUB_CONNECTION_STRING
+          value: "Endpoint=sb://batchprocessingthumbnailgeneratorez4fo7.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=1l62BiW9cOZLNoF/0Ta2KYWUPzm5cWh/6CsOKLUYIfU="
+        - name: STORAGE_ACCOUNT_CONNECTION_STRING
+          value: "DefaultEndpointsProtocol=https;AccountName=storageez4fo7;AccountKey=IpNrMOyHgzmEpdyEoKehe9OCnoQ+i/VUSLchfDG+oZccNs7tlnd4c0WTkDV74VX6jQ5wk4hMnV3EKwJq8ARLWA==;EndpointSuffix=core.windows.net"
+      volumes:
+      - name: docker-sock-volume
+        hostPath:
+          # location on host
+          path: /var/run/docker.sock
+      imagePullSecrets:
+      - name: batchprocessingthumbnailgeneratorregistry.azurecr.io
