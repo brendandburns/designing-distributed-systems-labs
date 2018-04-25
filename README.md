@@ -13,7 +13,7 @@ Go to lab: [1.1. Request Splitter](/1.%20Single%20Node%20Pattern/1.1.%20Request%
 
 ## 1.2. Single Node Pattern: Circuit Breaker Pattern
 
-In this lab we'll guide you through the steps to implement the Ambassador pattern as a Circuit Breaker with NGINX Plus and Kubernetes. The Circuit Breaker patterns is extremely useful in scenarios where you want to help failing back-end servers to recover from failure, re-route traffic and perform rate limiting.
+In this lab we'll guide you through the steps to implement the Ambassador pattern as a Circuit Breaker with NGINX Plus and Kubernetes. The Circuit Breaker pattern is extremely useful in scenarios where you want to help failing back-end servers to recover from failure, re-route traffic and perform rate limiting.
 
 ![Architecture Overview of the Batch Computational Pattern](/1.%20Single%20Node%20Pattern/1.2.%20Circuit%20Breaker/images/CircuitBreakerArchitecture.png)
 
