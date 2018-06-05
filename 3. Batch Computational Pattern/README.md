@@ -1,5 +1,5 @@
 # Batch Computation Pattern #
-## Deploying an Event-Driven Containerized Batch Processing Thumbnail Generator using Kubernetes on Azure Container Services (AKS) ##
+## Deploying an Event-Driven Containerized Batch Processing Thumbnail Generator using Kubernetes on Azure Kubernetes Services (AKS) ##
 
 In this sample you will use the Copier, Filter, Splitter and Join patterns to implement a thumbnail generator that will take a:
 - Video, and creates a frame capture and an animated GIF.
@@ -39,7 +39,7 @@ You'll be using FFMPEG to generate thumbnails, frame captures and animated GIFs,
 - [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/ "Kubernetes CLI (kubectl)") installed
 - [Docker CLI](https://docs.docker.com/install/ "Docker CLI") installed
 - An active [Docker account](https://id.docker.com/login "Docker account") (you will need to log on to push Docker images to your private repo)
-- A new **Resource Group** and **Container Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
+- A new **Resource Group** and **Kubernetes Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
 - Pvk2Pfx.exe Windows 10 SDK command line tool: [Pvk2Pfx.exe](https://docs.microsoft.com/en-us/windows-hardware/drivers/devtest/pvk2pfx)
 - Open a standard Windows Command Prompt window (with an active PATH environment variable pointing to Azure CLI, Kubernetes CLI and Docker CLI)
 
@@ -67,7 +67,6 @@ For instance, if your user name is TestUser, you may find the kubectl ```config`
 In order for the ```kubectl``` statements below to be fired against the correct Azure Kubernetes (AKS) instance, you need to link your Azure subscription to the local Kubernetes configuration.
 
 First you need to sign in,  by entering the following command in a Command Prompt window:
-
 
     az login
 
@@ -116,11 +115,11 @@ And if you haven't already create an AKS cluster, you can do so now with the fol
 
 > **Note:** This process may take a few minutes to complete.
 
-Then, to make sure you can use **Azure Container Service (AKS)** as our context for when running ```kubectl``` commands, you need to enter the following command:
+Then, to make sure you can use **Azure Kubernetes Service (AKS)** as our context for when running ```kubectl``` commands, you need to enter the following command:
 
     az aks get-credentials --resource-group batchprocessingthumbnailgenerator --name batchprocessingthumbnailgenerator
 
-where ```batchprocessingthumbnailgenerator``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```batchprocessingthumbnailgenerator``` is the name of the **Managed Container Service** (AKS, not ACS!) you created in the Azure Portal. 
+where ```batchprocessingthumbnailgenerator``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```batchprocessingthumbnailgenerator``` is the name of the **Kubernetes Service** (AKS) you created in the Azure Portal. 
 
 If successful, this will result in the following output:
 
@@ -201,9 +200,7 @@ That will result in an output similar to this:
       "tenant": "3dad2b09-9e66-4eb8-9bef-9f44544b0e74"
     }
 
-> **Note:** Please take note of the values for **appId** and **password** above, you will need those in the next step, when you will be creating a 
-> 
->  in Kubernetes and log in into Docker to link the two together. 
+> **Note:** Please take note of the values for **appId** and **password** above, you will need those in the next step, when you will be creating a Secret in Kubernetes and log in into Docker to link the two together. 
 
 ### 1.7. **Create in a Secret in Kubernetes**
 
@@ -801,7 +798,7 @@ Also, after successful completion you should have received an e-mail notificatio
 
 > **Note: **If your output files were generated successfully and you can see them in your Azure Blob Storage, and you have set up your SMTP configuration correctly in the NotifyContainer, but you are not receiving any notification e-mails, it may be that you are not allowed to perform SMTP requests from your Azure environment.
 
-You can check any SMTP issues by executing the following command (where the pod identifier matches the output of the ```kubecetl get pods``` command):
+You can check any SMTP issues by executing the following command (where the pod identifier matches the output of the ```kubectl get pods``` command):
 
     kubectl logs notify-deployment-800979295-6k7fk
 
@@ -929,7 +926,7 @@ These are the statements to tear-down all the containers, so you can re-build al
 ----------
 
 ![Logo of Azure AKS](./images/AzureAKS.png)
-**Azure Container Service (AKS)** 
+**Azure Kubernetes Service (AKS)** 
 
 
 

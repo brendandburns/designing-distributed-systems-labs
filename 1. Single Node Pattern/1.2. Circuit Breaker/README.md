@@ -32,13 +32,13 @@ Please check out these pages if you want to read more about the Circuit Breaker 
 
 ## Prerequisites
 
-In order to run the samples in this lab,you will need the following:
+In order to run the samples in this lab, you will need the following:
 
 - An active [Microsoft Azure](https://azure.microsoft.com/en-us/free "Microsoft Azure") Subscription
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/overview?view=azure-cli-latest "Azure CLI") installed
 - [Curl](https://curl.haxx.se/download.html "Curl") command line tool installed (for downloading ```kubectl``` as well as testing samples in this lab)
 - [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/ "Kubernetes CLI (kubectl)") installed
-- A new **Resource Group** and **Container Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
+- A new **Resource Group** and **Kubernetes Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
 - Open a Command Prompt window (with an active PATH environment variable pointing to Azure CLI and Kubernetes CLI)
 
 - Although not required, we encourage you to read the book *Designing Distributed Systems* by Brendan Burns.  The samples in this lab are written with the reader of this book in mind: [https://azure.microsoft.com/en-us/resources/designing-distributed-systems/en-us/](https://azure.microsoft.com/en-us/resources/designing-distributed-systems/en-us/ "Designing Distributed Systems")
@@ -68,7 +68,6 @@ For instance, if your user name is TestUser, you may find the kubectl ```config`
 In order for the ```kubectl``` statements below to be fired against the correct Azure Kubernetes (AKS) instance, you must link your Azure subscription to the local Kubernetes configuration.
 
 First you need to sign in, by entering the following command in a Command Prompt window:
-
 
     az login
 
@@ -115,11 +114,11 @@ And if you haven't already create an AKS cluster, you can do so now with the fol
 
 > **Note:** This process may take a few minutes to complete.
 
-Then, to make sure you can use **Azure Container Service (AKS)** as our context for when running ```kubectl``` commands, you need to enter the following command:
+Then, to make sure you can use **Azure Kubernetes Service (AKS)** as our context for when running ```kubectl``` commands, you need to enter the following command:
 
     az aks get-credentials --resource-group circuitbreaker --name circuitbreaker
 
-where ```circuitbreaker``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```circuitbreaker``` is the name of the **Managed Container Service** (AKS, not ACS!) you created in the Azure Portal. 
+where ```circuitbreaker``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```circuitbreaker``` is the name of the **Kubernetes Service** (AKS) you created in the Azure Portal. 
 
 If successful, this will result in the following output:
 
@@ -151,7 +150,7 @@ If the URLs in the output point to localhost, use the ```kubectl config set-cont
 
 In order for you to storage private Docker container images later on in this lab, you will need to create a Azure Container Registry in your Azure account first.
 
-But to group all the examples in this lab together, you will be creating a Resource Group for this lab first (f you haven't already done so) called ```circuitbreaker```:
+But to group all the examples in this lab together, you will be creating a Resource Group for this lab first (if you haven't already done so) called ```circuitbreaker```:
 
     az group create --name circuitbreaker --location "eastus"
 
@@ -201,9 +200,7 @@ That will result in an output similar to this:
       "tenant": "3dad2b09-9e66-4eb8-9bef-9f44544b0e74"
     }
 
-> **Note:** Please take note of the values for **appId** and **password** above, you will need those in the next step, when you will be creating a 
-> 
->  in Kubernetes and log in into Docker to link the two together. 
+> **Note:** Please take note of the values for **appId** and **password** above, you will need those in the next step, when you will be creating a Secret in Kubernetes and log in into Docker to link the two together. 
 
 ### 1.7. **Create in a Secret in Kubernetes**
 
@@ -224,7 +221,7 @@ It will ask you for your a user name and password. Please use the **appId** from
     Username: c1d73d5d-7f01-4e4d-b621-32ebe014ebb5
     Password: Test12345
 
-## 2. Deploying the Dummy Service into Azure Container Services (AKS)
+## 2. Deploying the Dummy Service into Azure Kubernetes Services (AKS)
 
 Now you have created your own Docker registry in Azure Container Registry, you can now push Docker images to this registry.
 
@@ -331,7 +328,7 @@ Then, execute the following command to push your Docker image to the Azure Conta
 
     docker push circuitbreakerregistry.azurecr.io/dummyservice
 
-### 2.3. Deploy DummyServiceContainer to Azure Container Services (AKS)
+### 2.3. Deploy DummyServiceContainer to Azure Kubernetes Services (AKS)
 
 Consider the following ```dummy-deployment.yaml```:
 
@@ -691,7 +688,7 @@ Which should return the following result every time:
     <
     SOMERESPONSE FROM 10.244.0.104
 
-Now, notice the IP address on the last line that now matches the CLUSTER-IP of the ```backend-deployment-xxx-yyy``` pod (see ```kubectl get pods --output=wide```) and no longer the ```dummy-deployment```.
+Now, notice the IP address on the last line that now matches the CLUSTER-IP of the ```backup-deployment-xxx-yyy``` pod (see ```kubectl get pods --output=wide```) and no longer the ```dummy-deployment```.
 
 This proves the circuit breaker kicked in.
 
@@ -825,5 +822,5 @@ In this lab you learned how to deploy an NGINX Plus image and configure it to im
 ----------
 
 ![Logo of Azure AKS](./images/AzureAKS.png)
-**Azure Container Service (AKS)** 
+**Azure Kubernetes Service (AKS)** 
 
