@@ -1,5 +1,5 @@
 # Serving Pattern: Decorator Function #
-## Deploying a Function-as-a-Service (FaaS) in Kubernetes with Kubeless on Azure Container Services (AKS) ##
+## Deploying a Function-as-a-Service (FaaS) in Kubernetes with Kubeless on Azure Kubernetes Services (AKS) ##
 
 In this lab we will be use the Decorator Pattern to implement a Function that adds default values and performs transformations to the input of an HTTP RESTful API.
 
@@ -12,7 +12,7 @@ In this lab we will be use the Decorator Pattern to implement a Function that ad
 - [Curl](https://curl.haxx.se/download.html "Curl") command line tool installed (for downloading ```kubectl``` as well as testing samples in this lab)
 - [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/ "Kubernetes CLI (kubectl)") installed
 - [Kubeless CLI (kubeless)](https://github.com/kubeless/kubeless/releases "Kubeless CLI (kubeless)") installed
-- A new **Resource Group** and **Container Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
+- A new **Resource Group** and **Azure Kubernetes Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
 - Open a Command Prompt window (with an active PATH environment variable pointing to Azure CLI and Kubernetes CLI)
 
 - Although not required, we encourage you to read the book *Designing Distributed Systems* by Brendan Burns. The samples in this lab are written with the reader of this book in mind: [https://azure.microsoft.com/en-us/resources/designing-distributed-systems/en-us/](https://azure.microsoft.com/en-us/resources/designing-distributed-systems/en-us/ "Designing Distributed Systems")
@@ -41,7 +41,6 @@ For instance, if your user name is TestUser, you may find the kubectl ```config`
 In order for the ```kubectl``` statements below to be fired against the correct Azure Kubernetes (AKS) instance, you need to link your Azure subscription to the local Kubernetes configuration.
 
 First you need to sign in,  by entering the following command in a Command Prompt window:
-
 
     az login
 
@@ -78,11 +77,11 @@ Next, link your Azure subscription so that the Azure CLI (```az```) will work ag
 
 ### 1.4 **Getting Kubernetes configuration from Azure**
 
-Then, ensure you can use the **Azure Container Service (AKS)** as your context when running ```kubectl``` commands, by entering the following command:
+Then, ensure you can use the **Azure Kubernetes Service (AKS)** as your context when running ```kubectl``` commands, by entering the following command:
 
     az aks get-credentials --resource-group TestKub --name TestKub1
 
-where ```TestKub``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```TestKub1``` is the name of the **Managed Container Service** (AKS, not ACS!) you created in the Azure Portal. 
+where ```TestKub``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```TestKub1``` is the name of the **Kubernetes Service** (AKS) you created in the Azure Portal. 
 
 If successful, this will result in the following output:
 
@@ -113,7 +112,7 @@ If the URLs in the output point to localhost, please use the ```kubectl config s
 
 ### 1.6 Install Kubeless
 
-In order to use the kubeless FaaS framework,youwe need to deploy Kubeless on top of your Kubernetes cluster. 
+In order to use the kubeless FaaS framework, you need to deploy Kubeless on top of your Kubernetes cluster. 
 
 To do this, execute the following command:
 
@@ -142,7 +141,6 @@ This will result in an output similar to this:
 ![Example of Shape Objects](./images/Shapes.png) 
  
 First, create a simple **Main function** in Python that will store shapes in a database. A shape will be defined by a JSON object with the attributes:
-
 
 - Name
 - Color
@@ -541,7 +539,7 @@ Here are the statements to delete the functions, so you can re-run the statement
 
 ## 5. Conclusion
 
-In this labyouwe learned how to create a Python (or JavaScript) function and deploy it as a Function-as-a-Service (Faas) in Kubeless within Kubernetes on Azure Container Services (AKS). 
+In this lab you learned how to create a Python (or JavaScript) function and deploy it as a Function-as-a-Service (Faas) in Kubeless within Kubernetes on Azure Kubernetes Services (AKS). 
 
 You also learned how to use the Decorator pattern to create a Decorator function that extends the behavior of a Main function.
 
@@ -565,7 +563,7 @@ You also learned how to use the Decorator pattern to create a Decorator function
 ----------
 
 ![Logo of Azure AKS](./images/AzureAKS.png)
-**Azure Container Service (AKS)** 
+**Azure Kubernetes Service (AKS)** 
 
 
 

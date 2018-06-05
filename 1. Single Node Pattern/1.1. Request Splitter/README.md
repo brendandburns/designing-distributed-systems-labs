@@ -13,7 +13,7 @@ In order to run the samples in this lab,you will need the following:
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/overview?view=azure-cli-latest "Azure CLI") installed
 - [Curl](https://curl.haxx.se/download.html "Curl") command line tool installed (for downloading ```kubectl``` as well as testing samples in this lab)
 - [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/ "Kubernetes CLI (kubectl)") installed
-- A new **Resource Group** and **Container Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
+- A new **Resource Group** and **Azure Kubernetes Service (AKS)** created in the [Microsoft Azure Portal](https://portal.azure.com "Microsoft Azure Portal") to run samples in.
 - Open a Command Prompt window (with an active PATH environment variable pointing to Azure CLI and Kubernetes CLI)
 
 - Although not required, we encourage you to read the book *Designing Distributed Systems* by Brendan Burns.  The samples in this lab are written with the reader of this book in mind: [https://azure.microsoft.com/en-us/resources/designing-distributed-systems/en-us/](https://azure.microsoft.com/en-us/resources/designing-distributed-systems/en-us/ "Designing Distributed Systems")
@@ -43,7 +43,6 @@ For instance, if your user name is TestUser, you may find the kubectl ```config`
 In order for the ```kubectl``` statements below to be fired against the correct Azure Kubernetes (AKS) instance, you must link your Azure subscription to the local Kubernetes configuration.
 
 First you need to sign in, by entering the following command in a Command Prompt window:
-
 
     az login
 
@@ -80,11 +79,11 @@ Next, you need to link your Azure subscription so that the Azure CLI (```az```) 
 
 ### 1.4 **Getting Kubernetes configuration from Azure**
 
-Then, make sure you can use **Azure Container Service (AKS)** for your context when you run ```kubectl``` commands, by entering the following command:
+Then, make sure you can use **Azure Kubernetes Service (AKS)** for your context when you run ```kubectl``` commands, by entering the following command:
 
     az aks get-credentials --resource-group TestKub --name TestKub1
 
-where ```TestKub``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```TestKub1``` is the name of the **Managed Container Service** (AKS, not ACS!) you created in the Azure Portal. 
+where ```TestKub``` is the name of a **Resource Group** you have created for yourself in the Azure Portal and ```TestKub1``` is the name of the **Kubernetes Service** (AKS) you created in the Azure Portal. 
 
 If successful, this will result in the following output:
 
@@ -307,7 +306,7 @@ As we will see later when constructing the Pod and Deployment Yaml files, you wi
 
 **Kubernetes** is an open-source system for automating deployment, scaling, and management of containerized applications.  It was originally designed by Google and is now maintained by the Cloud Native Computing Foundation.
 
-**Azure Container Service** (AKS) manages your hosted Kubernetes environment, making it quick and easy to deploy and manage containerized applications without container orchestration expertise.
+**Azure Kubernetes Service** (AKS) manages your hosted Kubernetes environment, making it quick and easy to deploy and manage containerized applications without container orchestration expertise.
 
 In this lab you will create a simple load balancing service that returns a fixed string for an HTTP request. 
 
@@ -596,5 +595,5 @@ In this lab you implemented the ambassador pattern with NGINX and configured it 
 ----------
 
 ![Logo of Azure AKS](./images/AzureAKS.png)
-**Azure Container Service (AKS)** 
+**Azure Kubernetes Service (AKS)** 
 
