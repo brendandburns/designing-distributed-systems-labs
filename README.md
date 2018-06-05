@@ -62,4 +62,4 @@ Go to lab: [3. Batch Computational Pattern](/3.%20Batch%20Computational%20Patter
 ----------
 
 ![Logo of Azure AKS](/1.%20Single%20Node%20Pattern/1.1.%20Request%20Splitter/images/AzureAKS.png)
-**Azure Container Service (AKS)** 
+**Azure Kubernetes Service (AKS)** 
