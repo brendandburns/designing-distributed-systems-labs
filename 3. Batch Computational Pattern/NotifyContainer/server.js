@@ -5,7 +5,10 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 var localSettings = require('./local.settings');
-localSettings.connectionStrings.eventHub = process.env.EVENT_HUB_CONNECTION_STRING;
+
+localSettings.connectionStrings = {
+    eventHub : process.env.EVENT_HUB_CONNECTION_STRING
+};
 
 console.log('localSettings = ' + JSON.stringify(localSettings));
 
