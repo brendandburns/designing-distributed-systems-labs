@@ -426,7 +426,7 @@ Now you have a private Docker image with tag ```batchprocessingthumbnailgenerato
             app: prepare-deployment
         spec:
           containers:
-          - name: prepare-depoyment
+          - name: prepare-deployment
             image: batchprocessingthumbnailgeneratorregistry.azurecr.io/batchprocessing-prepare
             ports:
             - containerPort: 8080
