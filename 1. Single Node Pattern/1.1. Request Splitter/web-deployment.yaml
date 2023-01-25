@@ -1,16 +1,19 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web-deployment
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: web-deployment
   template:
     metadata:
       labels:
         app: web-deployment
     spec:
       containers:
-      - name: web-depoyment
-        image: microsoft/aci-helloworld
+      - name: web-deployment
+        image: mcr.microsoft.com/azuredocs/aci-helloworld
         ports:
         - containerPort: 80
