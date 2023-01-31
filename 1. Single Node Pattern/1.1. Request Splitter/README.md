@@ -198,20 +198,23 @@ This simple Docker image will process requests on port **80** and return a basic
 We can easily create a load-balancing Kubernetes pod based on an existing Docker image with the following Yaml file:
 
 
-    apiVersion: extensions/v1beta1
+    apiVersion: apps/v1
     kind: Deployment
     metadata:
       name: web-deployment
     spec:
       replicas: 2
+      selector:
+        matchLabels:
+          app: web-deployment
       template:
         metadata:
           labels:
             app: web-deployment
         spec:
           containers:
-          - name: web-depoyment
-            image: microsoft/aci-helloworld
+          - name: web-deployment
+            image: mcr.microsoft.com/azuredocs/aci-helloworld
             ports:
             - containerPort: 80
 
@@ -242,22 +245,27 @@ This simple Docker image will process requests on port **80** and return a basic
 We can easily create a load balancing Kubernetes pod based on an existing Docker image with the following Yaml file:
 
 
-    apiVersion: extensions/v1beta1
+    apiVersion: apps/v1
     kind: Deployment
     metadata:
       name: experiment-deployment
     spec:
       replicas: 2
+      selector:
+        matchLabels:
+          app: experiment-deployment
       template:
         metadata:
           labels:
             app: experiment-deployment
         spec:
           containers:
-          - name: experiment-depoyment
-            image: microsoft/aci-helloworld
+          - name: experiment-deployment
+            image: mcr.microsoft.com/azuredocs/aci-helloworld
             ports:
             - containerPort: 80
+
+
 
 Note where the image attribute refers to the Microsoft repository and the aci-helloworld image in that repository.
 
@@ -315,7 +323,7 @@ In the steps above you learned how to create a custom NGINX configuration to ret
 
 The following Yaml file ```ambassador-deployment.yaml``` is used to create our simple load balancing service:
 
-    apiVersion: apps/v1beta1 # for versions before 1.9.0 use apps/v1beta2
+    apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
     kind: Deployment
     metadata:
       name: ambassador-deployment
